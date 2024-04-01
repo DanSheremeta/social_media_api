@@ -61,6 +61,18 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserListSerializer(serializers.ModelSerializer):
+    follows = serializers.HyperlinkedRelatedField(
+        view_name="user:manage",
+        read_only=True,
+        many=True,
+    )
+    followers = serializers.HyperlinkedRelatedField(
+        view_name="user:manage",
+        read_only=True,
+        many=True,
+    )
+    followers_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = get_user_model()
         fields = (
@@ -70,4 +82,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "avatar",
             "bio",
             "birthday",
+            "follows",
+            "followers",
+            "followers_count",
         )

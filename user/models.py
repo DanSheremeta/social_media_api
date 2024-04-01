@@ -1,6 +1,7 @@
 import os
 import uuid
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import (
     AbstractUser,
     BaseUserManager,
@@ -66,14 +67,12 @@ class User(AbstractUser):
         null=True,
         upload_to=user_image_file_path,
     )
-    bio = models.TextField(
-        _("biography"),
-        max_length=255,
-        null=True
-    )
-    birthday = models.DateField(
-        _("birthday"),
-        null=True
+    bio = models.TextField(_("biography"), max_length=255, null=True)
+    birthday = models.DateField(_("birthday"), null=True)
+    follows = models.ManyToManyField(
+        "User",
+        related_name="followers",
+        blank=True,
     )
 
     USERNAME_FIELD = "email"
@@ -85,3 +84,8 @@ class User(AbstractUser):
         ordering = ("email",)
         verbose_name = _("user")
         verbose_name_plural = _("users")
+
+    @property
+    def followers_count(self) -> int:
+        """Calculates and returns the number of users following the current user."""
+        return self.followers.count()

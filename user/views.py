@@ -16,6 +16,39 @@ from user.serializers import (
 )
 
 
+class FollowUserView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, pk=None):
+        try:
+            user_to_follow = get_user_model().objects.get(id=pk)
+        except get_user_model().DoesNotExist:
+            return Response(
+                {"error": "User not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if request.user == user_to_follow:
+            return Response(
+                {"error": "You cannot follow yourself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request.user.follows.add(user_to_follow)
+        return Response({"message": "User followed successfully."}, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk=None):
+        try:
+            user_to_unfollow = get_user_model().objects.get(pk=pk)
+        except get_user_model().DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user == user_to_unfollow:
+            return Response({"error": "You cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.follows.remove(user_to_unfollow)
+        return Response({"message": "User unfollowed successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
 class CreateUserView(generics.CreateAPIView):
     serializer_class = UserSerializer
 
@@ -31,16 +64,27 @@ class UserListPagination(PageNumberPagination):
 
 
 class UserListView(generics.ListAPIView):
-    queryset = get_user_model().objects.all()
     serializer_class = UserListSerializer
     pagination_class = UserListPagination
     permission_classes = (IsAuthenticated,)
 
+    def get_queryset(self):
+        queryset = get_user_model().objects.all()
+        username = self.request.query_params.get("username")
 
-class ManageUserView(generics.RetrieveUpdateDestroyAPIView):
+        if username:
+            queryset = queryset.filter(username__icontains=username)
+
+        return queryset
+
+
+class ManageUserView(generics.RetrieveUpdateAPIView):
     queryset = get_user_model().objects.all()
-    serializer_class = UserSerializer
-    permission_classes = (IsAuthenticated, IsOwnerOrReadOnly,)
+    serializer_class = UserListSerializer
+    permission_classes = (
+        IsAuthenticated,
+        IsOwnerOrReadOnly,
+    )
 
 
 class LogoutUserView(APIView):
