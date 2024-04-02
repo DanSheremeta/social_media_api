@@ -9,9 +9,15 @@ from django.utils.translation import gettext as _
 
 class Comment(models.Model):
     writer = models.ForeignKey(
-        get_user_model(), on_delete=models.CASCADE, verbose_name="comments"
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name="comments",
     )
-    post = models.ForeignKey("Post", on_delete=models.CASCADE, verbose_name="comments")
+    post = models.ForeignKey(
+        "Post",
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
     content = models.TextField(max_length=255)
     created_at = models.DateTimeField(auto_now=True)
 

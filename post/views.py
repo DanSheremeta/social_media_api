@@ -12,6 +12,7 @@ from post.serializers import (
     CommentListSerializer,
     PostSerializer,
     PostListSerializer,
+    PostDetailSerializer,
 )
 from post.permissions import IsAdminOrIfAuthenticatedReadOnly
 
@@ -34,6 +35,7 @@ class TagViewSet(
 class PostViewSet(
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
     queryset = Post.objects.all()
@@ -41,8 +43,10 @@ class PostViewSet(
     pagination_class = PostDefaultPagination
 
     def get_serializer_class(self):
-        if self.action in ("list", "retrieve"):
+        if self.action == "list":
             return PostListSerializer
+        if self.action == "retrieve":
+            return PostDetailSerializer
         if self.action == "comment":
             return CommentSerializer
         return PostSerializer
@@ -99,10 +103,7 @@ class PostViewSet(
         serializer = CommentSerializer(data=request.data)
 
         if serializer.is_valid():
-            serializer.save(
-                writer=user,
-                post=item
-            )
+            serializer.save(writer=user, post=item)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -114,7 +115,9 @@ class PostViewSet(
     def comments(self, request, pk=None):
         item = self.get_object()
         queryset = Comment.objects.filter(post=item)
-        serializer = CommentListSerializer(queryset, many=True, context={"request": request})
+        serializer = CommentListSerializer(
+            queryset, many=True, context={"request": request}
+        )
 
         return Response(
             serializer.data,

@@ -73,3 +73,28 @@ class PostListSerializer(PostSerializer):
             "count_likes",
             "comments",
         )
+
+
+class PostDetailSerializer(serializers.ModelSerializer):
+    comments = CommentSerializer(many=True, read_only=True)
+    tags = serializers.SlugRelatedField(many=True, read_only=True, slug_field="name")
+    count_likes = serializers.IntegerField(read_only=True)
+    creator = serializers.HyperlinkedRelatedField(
+        many=False,
+        read_only=True,
+        view_name="user:manage",
+    )
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "image",
+            "title",
+            "content",
+            "creator",
+            "tags",
+            "created_at",
+            "count_likes",
+            "comments",
+        )
