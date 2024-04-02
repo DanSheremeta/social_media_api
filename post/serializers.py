@@ -98,3 +98,9 @@ class PostDetailSerializer(serializers.ModelSerializer):
             "count_likes",
             "comments",
         )
+
+
+class PostLikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ("id",)

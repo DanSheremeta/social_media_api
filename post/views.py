@@ -1,4 +1,6 @@
-from rest_framework import mixins, status
+from django.contrib.auth import get_user_model
+from django.db.models import Q, F
+from rest_framework import mixins, status, generics
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -13,6 +15,7 @@ from post.serializers import (
     PostSerializer,
     PostListSerializer,
     PostDetailSerializer,
+    PostLikeSerializer,
 )
 from post.permissions import IsAdminOrIfAuthenticatedReadOnly
 
@@ -43,12 +46,19 @@ class PostViewSet(
     pagination_class = PostDefaultPagination
 
     def get_serializer_class(self):
-        if self.action == "list":
+        if self.action in (
+            "list",
+            "liked_posts",
+            "user_posts",
+            "followings_posts",
+        ):
             return PostListSerializer
         if self.action == "retrieve":
             return PostDetailSerializer
         if self.action == "comment":
             return CommentSerializer
+        if self.action == "like_post":
+            return PostLikeSerializer
         return PostSerializer
 
     @staticmethod
@@ -78,7 +88,7 @@ class PostViewSet(
     @action(
         methods=["POST"],
         detail=True,
-        url_path="like-post",
+        url_path="like",
     )
     def like_post(self, request, pk=None):
         item = self.get_object()
@@ -86,11 +96,13 @@ class PostViewSet(
 
         if user in item.likes.all():
             item.likes.remove(user)
+            message = {"message": "You successfully unliked this post."}
         else:
             item.likes.add(user)
+            message = {"message": "You successfully liked this post."}
         item.save()
 
-        return Response(status=status.HTTP_201_CREATED)
+        return Response(message, status=status.HTTP_201_CREATED)
 
     @action(
         methods=["POST"],
@@ -119,7 +131,44 @@ class PostViewSet(
             queryset, many=True, context={"request": request}
         )
 
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK,
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        methods=["GET"],
+        detail=False,
+        url_path="liked",
+    )
+    def liked_posts(self, request):
+        queryset = request.user.liked_posts
+        serializer = PostListSerializer(
+            queryset, many=True, context={"request": request}
         )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        methods=["GET"],
+        detail=False,
+        url_path="my",
+    )
+    def user_posts(self, request):
+        queryset = request.user.created_posts
+        serializer = PostListSerializer(
+            queryset, many=True, context={"request": request}
+        )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        methods=["GET"],
+        detail=False,
+        url_path="followings",
+    )
+    def followings_posts(self, request):
+        following_users = request.user.follows.all()
+        queryset = self.queryset.filter(creator__in=following_users)
+        serializer = PostListSerializer(
+            queryset, many=True, context={"request": request}
+        )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
