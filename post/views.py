@@ -1,10 +1,9 @@
-from django.contrib.auth import get_user_model
-from django.db.models import Q, F
-from rest_framework import mixins, status, generics
+from django.shortcuts import get_object_or_404
+from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 
 from post.models import Tag, Comment, Post
@@ -17,7 +16,11 @@ from post.serializers import (
     PostDetailSerializer,
     PostLikeSerializer,
 )
-from post.permissions import IsAdminOrIfAuthenticatedReadOnly
+from post.permissions import (
+    IsAdminOrIfAuthenticatedReadOnly,
+    IsPostCreatorOrReadOnly,
+    IsCommentWriterOrReadOnly,
+)
 
 
 class PostDefaultPagination(PageNumberPagination):
@@ -35,14 +38,20 @@ class TagViewSet(
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
 
-class PostViewSet(
-    mixins.CreateModelMixin,
-    mixins.ListModelMixin,
+class CommentManageViewSet(
     mixins.RetrieveModelMixin,
-    GenericViewSet,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    GenericViewSet
 ):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = (IsAuthenticated, IsCommentWriterOrReadOnly)
+
+
+class PostViewSet(ModelViewSet):
     queryset = Post.objects.all()
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsPostCreatorOrReadOnly)
     pagination_class = PostDefaultPagination
 
     def get_serializer_class(self):
@@ -56,6 +65,8 @@ class PostViewSet(
         if self.action == "retrieve":
             return PostDetailSerializer
         if self.action == "comment":
+            return CommentSerializer
+        if self.action == "comments":
             return CommentSerializer
         if self.action == "like_post":
             return PostLikeSerializer
@@ -105,33 +116,33 @@ class PostViewSet(
         return Response(message, status=status.HTTP_201_CREATED)
 
     @action(
-        methods=["POST"],
-        detail=True,
-        url_path="comment",
-    )
-    def comment(self, request, pk=None):
-        item = self.get_object()
-        user = request.user
-        serializer = CommentSerializer(data=request.data)
-
-        if serializer.is_valid():
-            serializer.save(writer=user, post=item)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(
-        methods=["GET"],
+        methods=["GET", "POST"],
         detail=True,
         url_path="comments",
     )
     def comments(self, request, pk=None):
         item = self.get_object()
-        queryset = Comment.objects.filter(post=item)
-        serializer = CommentListSerializer(
-            queryset, many=True, context={"request": request}
-        )
+        user = request.user
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if request.method == "GET":
+            queryset = Comment.objects.filter(post=item)
+            serializer = CommentListSerializer(
+                queryset, many=True, context={"request": request}
+            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        elif request.method == "POST":
+            serializer = CommentSerializer(data=request.data)
+
+            if serializer.is_valid():
+                serializer.save(writer=user, post=item)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {"error": "Method not allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     @action(
         methods=["GET"],

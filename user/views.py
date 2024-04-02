@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -20,13 +21,7 @@ class FollowUserView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request, pk=None):
-        try:
-            user_to_follow = get_user_model().objects.get(id=pk)
-        except get_user_model().DoesNotExist:
-            return Response(
-                {"error": "User not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
+        user_to_follow = get_object_or_404(get_user_model(), pk=pk)
         if request.user == user_to_follow:
             return Response(
                 {"error": "You cannot follow yourself."},
@@ -37,11 +32,7 @@ class FollowUserView(APIView):
         return Response({"message": "User followed successfully."}, status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk=None):
-        try:
-            user_to_unfollow = get_user_model().objects.get(pk=pk)
-        except get_user_model().DoesNotExist:
-            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-
+        user_to_unfollow = get_object_or_404(get_user_model(), pk=pk)
         if request.user == user_to_unfollow:
             return Response({"error": "You cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST)
 
