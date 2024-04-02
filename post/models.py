@@ -45,8 +45,12 @@ class Post(models.Model):
     )
     title = models.CharField(max_length=150)
     content = models.TextField(blank=True)
-    creator = models.ForeignKey(get_user_model(), related_name="created_posts", on_delete=models.CASCADE)
-    likes = models.ManyToManyField(get_user_model(), related_name="liked_posts", blank=True)
+    creator = models.ForeignKey(
+        get_user_model(), related_name="created_posts", on_delete=models.CASCADE
+    )
+    likes = models.ManyToManyField(
+        get_user_model(), related_name="liked_posts", blank=True
+    )
     tags = models.ManyToManyField(Tag, verbose_name="tag_posts")
     created_at = models.DateTimeField(auto_now=True)
 
@@ -57,6 +61,11 @@ class Post(models.Model):
         )
         verbose_name = "posts"
         verbose_name_plural = "posts"
+
+    @property
+    def count_likes(self) -> int:
+        """Returns the number of likes on the post."""
+        return self.likes.count()
 
     def __str__(self) -> str:
         return f"{self.creator}: {self.title}"

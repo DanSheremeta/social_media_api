@@ -1,5 +1,14 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework import routers
 
-urlpatterns = []
+from post.views import TagViewSet, PostViewSet
+
+router = routers.DefaultRouter()
+router.register("tags", TagViewSet)
+router.register("", PostViewSet)
+
+urlpatterns = [
+    path("", include(router.urls)),
+]
 
 app_name = "post"
