@@ -104,3 +104,17 @@ class PostLikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ("id",)
+
+
+class PostScheduleSerializer(serializers.ModelSerializer):
+    scheduled_time = serializers.DateTimeField()
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "scheduled_time",
+            "title",
+            "content",
+            "tags",
+        )

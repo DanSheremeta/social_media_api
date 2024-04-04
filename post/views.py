@@ -1,4 +1,5 @@
-from django.shortcuts import get_object_or_404
+from datetime import datetime
+
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -15,12 +16,14 @@ from post.serializers import (
     PostListSerializer,
     PostDetailSerializer,
     PostLikeSerializer,
+    PostScheduleSerializer,
 )
 from post.permissions import (
     IsAdminOrIfAuthenticatedReadOnly,
     IsPostCreatorOrReadOnly,
     IsCommentWriterOrReadOnly,
 )
+from post.tasks import create_post
 
 
 class PostDefaultPagination(PageNumberPagination):
@@ -42,7 +45,7 @@ class CommentManageViewSet(
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     mixins.DestroyModelMixin,
-    GenericViewSet
+    GenericViewSet,
 ):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
@@ -70,6 +73,8 @@ class PostViewSet(ModelViewSet):
             return CommentSerializer
         if self.action == "like_post":
             return PostLikeSerializer
+        if self.action == "schedule":
+            return PostScheduleSerializer
         return PostSerializer
 
     @staticmethod
@@ -183,3 +188,31 @@ class PostViewSet(ModelViewSet):
         )
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        methods=["POST"],
+        detail=False,
+        url_path="schedule",
+    )
+    def schedule(self, request):
+        serializer = PostSerializer(data=request.data)
+        creator_id = request.user.id
+
+        if serializer.is_valid():
+            # Schedule post creation task
+            tag_ids = [tag.id for tag in serializer.validated_data.pop("tags", [])]
+            scheduled_time = datetime.strptime(
+                request.data["scheduled_time"],
+                "%Y-%m-%dT%H:%M"
+            ).astimezone()
+
+            create_post.apply_async(
+                args=[serializer.validated_data, creator_id, tag_ids],
+                eta=scheduled_time
+            )
+
+            return Response(
+                {"message": "Post scheduled successfully"},
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
