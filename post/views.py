@@ -1,4 +1,5 @@
 from datetime import datetime
+import base64
 
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -201,14 +202,14 @@ class PostViewSet(ModelViewSet):
         if serializer.is_valid():
             # Schedule post creation task
             tag_ids = [tag.id for tag in serializer.validated_data.pop("tags", [])]
+            image = base64.b64encode(serializer.validated_data.pop("image").read())
             scheduled_time = datetime.strptime(
-                request.data["scheduled_time"],
-                "%Y-%m-%dT%H:%M"
+                request.data["scheduled_time"], "%Y-%m-%dT%H:%M"
             ).astimezone()
 
             create_post.apply_async(
-                args=[serializer.validated_data, creator_id, tag_ids],
-                eta=scheduled_time
+                args=[serializer.validated_data, creator_id, tag_ids, image],
+                eta=scheduled_time,
             )
 
             return Response(

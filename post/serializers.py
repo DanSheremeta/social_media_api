@@ -114,6 +114,7 @@ class PostScheduleSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "scheduled_time",
+            "image",
             "title",
             "content",
             "tags",
