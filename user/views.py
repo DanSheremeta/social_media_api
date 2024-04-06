@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -20,7 +21,16 @@ from user.serializers import (
 class FollowUserView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @extend_schema(
+        request=None,
+        responses={
+            status.HTTP_201_CREATED: {"type": "message"},
+            status.HTTP_400_BAD_REQUEST: {"type": "error"},
+        },
+        methods=["POST"]
+    )
     def post(self, request, pk=None):
+        """The user follows another user"""
         user_to_follow = get_object_or_404(get_user_model(), pk=pk)
         if request.user == user_to_follow:
             return Response(
@@ -29,15 +39,29 @@ class FollowUserView(APIView):
             )
 
         request.user.follows.add(user_to_follow)
-        return Response({"message": "User followed successfully."}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"message": "User followed successfully."}, status=status.HTTP_201_CREATED
+        )
 
+    @extend_schema(
+        request=None,
+        responses={status.HTTP_204_NO_CONTENT: None},
+        methods=["DELETE"]
+    )
     def delete(self, request, pk=None):
+        """The user unfollows another user"""
         user_to_unfollow = get_object_or_404(get_user_model(), pk=pk)
         if request.user == user_to_unfollow:
-            return Response({"error": "You cannot unfollow yourself."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "You cannot unfollow yourself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         request.user.follows.remove(user_to_unfollow)
-        return Response({"message": "User unfollowed successfully."}, status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {"message": "User unfollowed successfully."},
+            status=status.HTTP_204_NO_CONTENT,
+        )
 
 
 class CreateUserView(generics.CreateAPIView):
@@ -68,6 +92,20 @@ class UserListView(generics.ListAPIView):
 
         return queryset
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="username",
+                description="Filter by username insensitive contains",
+                required=False,
+                type=str,
+            ),
+        ]
+    )
+    def get(self, request, *args, **kwargs):
+        """List users with filter by username"""
+        return self.list(request, *args, **kwargs)
+
 
 class ManageUserView(generics.RetrieveUpdateAPIView):
     queryset = get_user_model().objects.all()
@@ -81,7 +119,13 @@ class ManageUserView(generics.RetrieveUpdateAPIView):
 class LogoutUserView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    def post(self, request):
+    @extend_schema(
+        request=None,
+        responses={status.HTTP_204_NO_CONTENT: None},
+        methods=["DELETE"]
+    )
+    def delete(self, request):
+        """Delete user's token"""
         token = Token.objects.get(user_id=request.user.id)
         token.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

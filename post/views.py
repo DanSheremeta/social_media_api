@@ -1,6 +1,8 @@
 from datetime import datetime
 import base64
 
+from django.db.models import QuerySet
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -79,11 +81,11 @@ class PostViewSet(ModelViewSet):
         return PostSerializer
 
     @staticmethod
-    def _params_to_ints(qs):
+    def _params_to_ints(qs: str) -> list:
         """Converts a list of string IDs to a list of integers"""
         return [int(str_id) for str_id in qs.split(",")]
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet:
         """Retrieve the posts with filters"""
         title = self.request.query_params.get("title")
         tags = self.request.query_params.get("tags")
@@ -99,7 +101,7 @@ class PostViewSet(ModelViewSet):
 
         return queryset
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer) -> None:
         serializer.save(creator=self.request.user)
 
     @action(
@@ -107,7 +109,8 @@ class PostViewSet(ModelViewSet):
         detail=True,
         url_path="like",
     )
-    def like_post(self, request, pk=None):
+    def like_post(self, request, pk=None) -> Response:
+        """The user likes or unlikes specified post"""
         item = self.get_object()
         user = request.user
 
@@ -126,7 +129,8 @@ class PostViewSet(ModelViewSet):
         detail=True,
         url_path="comments",
     )
-    def comments(self, request, pk=None):
+    def comments(self, request, pk=None) -> Response:
+        """Get a list of comments or create new comment for specified post"""
         item = self.get_object()
         user = request.user
 
@@ -155,7 +159,8 @@ class PostViewSet(ModelViewSet):
         detail=False,
         url_path="liked",
     )
-    def liked_posts(self, request):
+    def liked_posts(self, request) -> Response:
+        """The user receives all the posts which he has liked"""
         queryset = request.user.liked_posts
         serializer = PostListSerializer(
             queryset, many=True, context={"request": request}
@@ -168,7 +173,8 @@ class PostViewSet(ModelViewSet):
         detail=False,
         url_path="my",
     )
-    def user_posts(self, request):
+    def user_posts(self, request) -> Response:
+        """The user receives all his/her posts"""
         queryset = request.user.created_posts
         serializer = PostListSerializer(
             queryset, many=True, context={"request": request}
@@ -181,7 +187,8 @@ class PostViewSet(ModelViewSet):
         detail=False,
         url_path="followings",
     )
-    def followings_posts(self, request):
+    def followings_posts(self, request) -> Response:
+        """The user receives all the posts of the users he/she follows"""
         following_users = request.user.follows.all()
         queryset = self.queryset.filter(creator__in=following_users)
         serializer = PostListSerializer(
@@ -195,7 +202,8 @@ class PostViewSet(ModelViewSet):
         detail=False,
         url_path="schedule",
     )
-    def schedule(self, request):
+    def schedule(self, request) -> Response:
+        """The user creating a scheduled post with specified date and time"""
         serializer = PostSerializer(data=request.data)
         creator_id = request.user.id
 
@@ -217,3 +225,23 @@ class PostViewSet(ModelViewSet):
                 status=status.HTTP_201_CREATED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="title",
+                description="Filter by title insensitive contains",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                "tags",
+                type={"type": "list", "items": {"type": "number"}},
+                description="Filter by tag ids (ex. ?tags=4,7)",
+                required=False,
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        """List posts with filter by title or tags"""
+        return super().list(request, *args, **kwargs)
