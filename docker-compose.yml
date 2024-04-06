@@ -43,6 +43,18 @@ services:
       - app
       - redis
 
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5555:5555"
+    command: celery -A social_media_api flower --address=0.0.0.0
+    depends_on:
+      - celery
+    env_file:
+      - .env
+
 volumes:
   social_media_db:
   social_media:
