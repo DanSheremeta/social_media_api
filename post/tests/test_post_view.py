@@ -8,7 +8,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework import status
 
 from post.models import Tag, Comment, Post
-from post.serializers import PostListSerializer, PostSerializer, CommentListSerializer, CommentSerializer
+from post.serializers import PostListSerializer, CommentListSerializer, CommentSerializer
 
 POST_URL = reverse("post:post-list")
 
@@ -260,12 +260,10 @@ class AuthenticatedMovieApiTests(TestCase):
     @patch("post.tasks.create_post.apply_async")
     @patch("post.serializers.PostSerializer")
     def test_schedule_creation_post(self, MockPostSerializer, mock_create_post):
-        # Mock the serializer
         mock_serializer_instance = MagicMock()
         mock_serializer_instance.is_valid.return_value = True
         MockPostSerializer.return_value = mock_serializer_instance
 
-        # Mock request
         tag = sample_tag()
         data = {
             "title": "Some title",
@@ -275,11 +273,8 @@ class AuthenticatedMovieApiTests(TestCase):
         }
         self.client.force_authenticate(user=self.user)
         url = reverse("post:post-schedule")
-        response = self.client.post(url, data, format="json")
+        res = self.client.post(url, data, format="json")
 
-        # Assertions
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data, {"message": "Post scheduled successfully"})
-
-        # Assert that the create_post task was called with correct arguments
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data, {"message": "Post scheduled successfully"})
         mock_create_post.assert_called_once()

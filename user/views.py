@@ -32,9 +32,9 @@ class FollowUserView(APIView):
     def post(self, request, pk=None):
         """The user follows another user"""
         user_to_follow = get_object_or_404(get_user_model(), pk=pk)
-        if request.user == user_to_follow:
+        if request.user == user_to_follow or user_to_follow in request.user.follows.all():
             return Response(
-                {"error": "You cannot follow yourself."},
+                {"error": "You cannot follow this user."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -51,9 +51,9 @@ class FollowUserView(APIView):
     def delete(self, request, pk=None):
         """The user unfollows another user"""
         user_to_unfollow = get_object_or_404(get_user_model(), pk=pk)
-        if request.user == user_to_unfollow:
+        if request.user == user_to_unfollow or user_to_unfollow not in request.user.follows.all():
             return Response(
-                {"error": "You cannot unfollow yourself."},
+                {"error": "You cannot unfollow this user."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
