@@ -146,7 +146,7 @@ class PostViewSet(ModelViewSet):
 
             if serializer.is_valid():
                 serializer.save(writer=user, post=item)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
@@ -210,7 +210,10 @@ class PostViewSet(ModelViewSet):
         if serializer.is_valid():
             # Schedule post creation task
             tag_ids = [tag.id for tag in serializer.validated_data.pop("tags", [])]
-            image = base64.b64encode(serializer.validated_data.pop("image").read())
+            if "image" in serializer.validated_data:
+                image = base64.b64encode(serializer.validated_data.pop("image").read())
+            else:
+                image = None
             scheduled_time = datetime.strptime(
                 request.data["scheduled_time"], "%Y-%m-%dT%H:%M"
             ).astimezone()
