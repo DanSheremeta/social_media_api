@@ -1,0 +1,60 @@
+version: "1.0"
+
+services:
+  app:
+    build:
+      context: .
+    env_file:
+      - .env
+    ports:
+      - "8001:8000"
+    command: >
+      sh -c "python manage.py wait_for_database &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./:/app
+      - social_media:/vol/web/media
+    depends_on:
+      - db
+
+  db:
+    image: postgres:14-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - social_media_db:$PGDATA
+
+  redis:
+    image: redis:7.0-alpine
+
+  celery:
+    build:
+      context: .
+    command: celery -A social_media_api worker -l INFO
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - app
+      - redis
+
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5555:5555"
+    command: celery -A social_media_api flower --address=0.0.0.0
+    depends_on:
+      - celery
+    env_file:
+      - .env
+
+volumes:
+  social_media_db:
+  social_media:
